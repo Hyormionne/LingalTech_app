@@ -1,0 +1,8 @@
+//pip freeze > requirements.txt
+
+streamlit
+os
+time
+json
+chromadb
+together
