@@ -1,3 +1,0 @@
-streamlit
-chromadb
-together
