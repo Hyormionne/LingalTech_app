@@ -506,7 +506,7 @@ elif st.session_state.step == 3:
 - legal_reference 필드는 절대 비워두지 마세요. 반드시 구체적인 법령 조항을 명시하세요.
 - 임산부 근로자의 경우 제3조, 제4조, 제6조는 특히 주의깊게 검토하세요."""
         
-        model_id = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+        model_id = "lingaltech810/Meta-Llama-3-8B-Instruct-63c67d9f-93eddf60"
         
         try:
              # together SDK 대신 HTTP 헬퍼 사용
