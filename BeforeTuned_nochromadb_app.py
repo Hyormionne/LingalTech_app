@@ -846,6 +846,8 @@ def run_ai_analysis_body(profile, contract_text, labeling_manual, model_name, ap
 
         if progress_callback: progress_callback(PROGRESS_STEPS[2], 30) # 3. DB Search
 
+        rag_context = "" 
+
         # 3. RAG 검색 (토큰 절약을 위해 핵심만)
         #rag_context = ""
         #if vectorstore:
@@ -1296,7 +1298,7 @@ elif st.session_state.step == "C":
     # [EDITED] Always Init RAG (removed the 'if not is_original_contract' check)
     # This ensures the loading spinner and success message appear even for model answers.
    # with st.spinner("📚 근로기준법 및 취업규칙 데이터베이스 로딩 중..."):
-   #     vectorstore = init_rag_system()
+    vectorstore = None
 
     def format_details(text):
         # Format headers: "1. Title (Risk)" -> "1. Title ([위험도: Risk])"
