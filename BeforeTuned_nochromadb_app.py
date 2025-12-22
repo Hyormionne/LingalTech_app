@@ -6,7 +6,7 @@ import re
 
 # --- IMPORTS ---
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_community.document_loaders import PDFPlumberLoader
+#from langchain_community.document_loaders import PDFPlumberLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -20,6 +20,47 @@ except ImportError:
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(page_title="AI Labor Law (Model Answer)", page_icon="⚖️", layout="wide")
+
+#최저시급
+MIN_WAGE = 10800  # 최저시급 기준 (원)
+
+def enforce_min_wage_high_risk(ai_text: str, min_wage: int = MIN_WAGE) -> str:
+    """
+    ai_text 안에서 '임금' 관련 조항에 '시급 XXXX원'이 있고 XXXX < min_wage면
+    해당 조항의 위험도를 고위험으로 강제 + 사유/개선 문구를 추가(가능한 범위에서).
+    """
+    if not ai_text:
+        return ai_text
+
+    # 시급 숫자 추출 (예: 시급 10,000원 / 시급10000원 / 시급 10000 원)
+    wage_matches = re.findall(r'시급\s*([0-9]{1,3}(?:,[0-9]{3})*|[0-9]+)\s*원', ai_text)
+
+    # 시급이 여러 번 나오면, 가장 먼저 나온 값을 기준으로 처리(원하면 max/min으로 바꿔도 됨)
+    if not wage_matches:
+        return ai_text
+
+    def to_int(s: str) -> int:
+        return int(s.replace(",", ""))
+
+    wage = to_int(wage_matches[0])
+
+    if wage >= min_wage:
+        return ai_text
+
+    # 1) '임금' 조항의 위험도를 고위험으로 강제 (저/중 -> 고)
+    #   패턴: "임금 ... ([위험도: 저위험])" 같은 형태를 고위험으로 바꿈
+    ai_text = re.sub(
+        r'(임금.*?\(\[위험도:\s*)(저위험|중위험)(\]\))',
+        r'\1고위험\3',
+        ai_text
+    )
+
+    # 2) 사유에 최저임금 미달 문구가 없으면 추가 (간단 삽입)
+    if "최저임금" not in ai_text:
+        ai_text += f"\n\n[임금 검증 자동 규칙]\n- 🔍 **사유**: 시급 {wage:,}원은 최저시급 {min_wage:,}원 미만으로 최저임금 위반 소지가 있습니다.\n- ⚖️ **근거**: 최저임금법 제6조\n- ✅ **개선**: 시급을 {min_wage:,}원 이상으로 조정하고, 임금 지급일·지급방법을 명확히 기재하십시오.\n"
+
+    return ai_text
+
 
 # FILES
 CSV_FILE = "04. 법률팀 라벨링 매뉴얼.csv"
@@ -668,59 +709,59 @@ def load_labeling_manual():
         return txt
     return "매뉴얼 없음"
 
-@st.cache_resource(show_spinner=True)
-def init_rag_system():
-    """근로기준법과 취업규칙 PDF를 모두 로드하여 통합 RAG 시스템 초기화"""
-    pdf_files = {
-        "근로기준법": "labor_standards_act.pdf",
-        "취업규칙": "work_rules.pdf"
-    }
+#@st.cache_resource(show_spinner=True)
+#def init_rag_system():
+#    """근로기준법과 취업규칙 PDF를 모두 로드하여 통합 RAG 시스템 초기화"""
+#    pdf_files = {
+#        "근로기준법": "labor_standards_act.pdf",
+#        "취업규칙": "work_rules.pdf"
+#    }
     
-    all_splits = []
-    loaded_files = []
+#    all_splits = []
+#    loaded_files = []
     
-    for name, pdf_path in pdf_files.items():
-        if not os.path.exists(pdf_path):
-            st.warning(f"⚠️ {pdf_path} 파일을 찾을 수 없습니다.")
-            continue
+#    for name, pdf_path in pdf_files.items():
+#        if not os.path.exists(pdf_path):
+#            st.warning(f"⚠️ {pdf_path} 파일을 찾을 수 없습니다.")
+#            continue
             
-        try:
-            loader = PDFPlumberLoader(pdf_path)
-            docs = loader.load()
+#        try:
+#            loader = PDFPlumberLoader(pdf_path)
+#            docs = loader.load()
             
-            for doc in docs:
-                doc.metadata['source_name'] = name
+#           for doc in docs:
+#                doc.metadata['source_name'] = name
             
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
-                separators=["\n제", "\n\n", "\n", " ", ""]
-            )
-            splits = text_splitter.split_documents(docs)
-            all_splits.extend(splits)
-            loaded_files.append(name)
+#            text_splitter = RecursiveCharacterTextSplitter(
+#                chunk_size=1000,
+#                chunk_overlap=200,
+#                separators=["\n제", "\n\n", "\n", " ", ""]
+#            )
+#            splits = text_splitter.split_documents(docs)
+#            all_splits.extend(splits)
+#            loaded_files.append(name)
             
-        except Exception as e:
-            st.warning(f"⚠️ {name} 로딩 오류: {e}")
+#        except Exception as e:
+#            st.warning(f"⚠️ {name} 로딩 오류: {e}")
     
-    if not all_splits:
-        st.error("❌ RAG 시스템 초기화 실패")
-        return None
+#    if not all_splits:
+#        st.error("❌ RAG 시스템 초기화 실패")
+#        return None
     
-    try:
-        embeddings = HuggingFaceEmbeddings(
-            model_name="jhgan/ko-sroberta-multitask",
-            model_kwargs={'device': 'cpu'},
-            encode_kwargs={'normalize_embeddings': True}
-        )
+#    try:
+#        embeddings = HuggingFaceEmbeddings(
+#            model_name="jhgan/ko-sroberta-multitask",
+#            model_kwargs={'device': 'cpu'},
+#            encode_kwargs={'normalize_embeddings': True}
+#        )
         
-        vectorstore = FAISS.from_documents(all_splits, embeddings)
-        st.success(f"✅ RAG 시스템 로드 완료: {', '.join(loaded_files)}")
-        return vectorstore
+#        vectorstore = FAISS.from_documents(all_splits, embeddings)
+#        st.success(f"✅ RAG 시스템 로드 완료: {', '.join(loaded_files)}")
+#        return vectorstore
         
-    except Exception as e:
-        st.error(f"❌ 벡터스토어 생성 오류: {e}")
-        return None
+#    except Exception as e:
+#        st.error(f"❌ 벡터스토어 생성 오류: {e}")
+#        return None
 
 def parse_contract_to_chunks(text):
     """
@@ -806,21 +847,21 @@ def run_ai_analysis_body(profile, contract_text, labeling_manual, model_name, ap
         if progress_callback: progress_callback(PROGRESS_STEPS[2], 30) # 3. DB Search
 
         # 3. RAG 검색 (토큰 절약을 위해 핵심만)
-        rag_context = ""
-        if vectorstore:
-            queries = ["근로계약서 필수 기재 사항", "근로기준법 위반"]
-            if profile.get("A2_2") != "해당 없음": queries.append("임산부 근로 보호")
+        #rag_context = ""
+        #if vectorstore:
+        #    queries = ["근로계약서 필수 기재 사항", "근로기준법 위반"]
+        #    if profile.get("A2_2") != "해당 없음": queries.append("임산부 근로 보호")
             
-            for i, query in enumerate(queries):
-                if progress_callback:
-                    progress = 30 + int((i / len(queries)) * 20)
-                    progress_callback(f"{PROGRESS_STEPS[2]} - {query} 검색 중...", progress)
+        #    for i, query in enumerate(queries):
+        #        if progress_callback:
+        #            progress = 30 + int((i / len(queries)) * 20)
+        #            progress_callback(f"{PROGRESS_STEPS[2]} - {query} 검색 중...", progress)
                 
-                docs = vectorstore.similarity_search(query, k=2)
-                for doc in docs:
-                    # 줄바꿈 제거하여 토큰 절약
-                    content_clean = doc.page_content.replace("\n", " ")[:200]
-                    rag_context += f"- {content_clean}\n"
+        #        docs = vectorstore.similarity_search(query, k=2)
+        #        for doc in docs:
+        #            # 줄바꿈 제거하여 토큰 절약
+        #            content_clean = doc.page_content.replace("\n", " ")[:200]
+        #            rag_context += f"- {content_clean}\n"
         
         if progress_callback: progress_callback(PROGRESS_STEPS[4], 75) # 5. Legal Matching
 
@@ -837,6 +878,7 @@ def run_ai_analysis_body(profile, contract_text, labeling_manual, model_name, ap
 - 사용자 프로필: {profile}
 - 법령 정보: {rag_context}
 - 판정 매뉴얼: {labeling_manual}
+- 최저임금 기준: 시급 10,800원 미만이면 '임금' 조항은 고위험으로 판정
 
 [전체 요약]
 ### 계약서 전체 분석 요약
@@ -1253,8 +1295,8 @@ elif st.session_state.step == "C":
     
     # [EDITED] Always Init RAG (removed the 'if not is_original_contract' check)
     # This ensures the loading spinner and success message appear even for model answers.
-    with st.spinner("📚 근로기준법 및 취업규칙 데이터베이스 로딩 중..."):
-        vectorstore = init_rag_system()
+   # with st.spinner("📚 근로기준법 및 취업규칙 데이터베이스 로딩 중..."):
+   #     vectorstore = init_rag_system()
 
     def format_details(text):
         # Format headers: "1. Title (Risk)" -> "1. Title ([위험도: Risk])"
@@ -1279,6 +1321,7 @@ elif st.session_state.step == "C":
         # 2. Construct a single body string that mimics the AI output structure
         formatted_details = format_details(model_answer['details'])
         ai_body = f"### 계약서 전체 분석 요약\n{model_answer['summary']}\n\n### 조항별 세부 분석\n{formatted_details}"
+        ai_body = enforce_min_wage_high_risk(ai_body, min_wage=10800)
 
         # 3. Calculate actual counts using Regex (Same as AI logic)
         high_risk = len(re.findall(r'위험도:\s*.*고위험', ai_body))
@@ -1334,6 +1377,7 @@ elif st.session_state.step == "C":
         try:
             # CALL REAL PROGRESS
             ai_body = show_real_progress(run_with_progress)
+            ai_body = enforce_min_wage_high_risk(ai_body, min_wage=10800)
             
             # --- FIX 3: CHECK FOR EMPTY OUTPUT ---
             if not ai_body or ai_body.strip() == "":
