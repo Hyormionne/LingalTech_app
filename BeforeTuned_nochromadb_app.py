@@ -22,7 +22,7 @@ except ImportError:
 st.set_page_config(page_title="AI Labor Law (Model Answer)", page_icon="⚖️", layout="wide")
 
 #최저시급
-MIN_WAGE = 10800  # 최저시급 기준 (원)
+MIN_WAGE = 10030  # 최저시급 기준 (원)
 
 def enforce_min_wage_high_risk(ai_text: str, min_wage: int = MIN_WAGE) -> str:
     """
@@ -880,7 +880,7 @@ def run_ai_analysis_body(profile, contract_text, labeling_manual, model_name, ap
 - 사용자 프로필: {profile}
 - 법령 정보: {rag_context}
 - 판정 매뉴얼: {labeling_manual}
-- 최저임금 기준: 시급 10,800원 미만이면 '임금' 조항은 고위험으로 판정
+- 최저임금 기준: 시급 10,030원 미만이면 '임금' 조항은 고위험으로 판정
 
 [전체 요약]
 ### 계약서 전체 분석 요약
