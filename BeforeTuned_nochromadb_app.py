@@ -672,8 +672,8 @@ def load_labeling_manual():
 def init_rag_system():
     """근로기준법과 취업규칙 PDF를 모두 로드하여 통합 RAG 시스템 초기화"""
     pdf_files = {
-        "근로기준법": "근로기준법.pdf",
-        "취업규칙": "취업규칙.pdf"
+        "근로기준법": "labor_standards_act.pdf",
+        "취업규칙": "work_rules.pdf"
     }
     
     all_splits = []
