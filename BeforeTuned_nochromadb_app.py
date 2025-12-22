@@ -1315,6 +1315,10 @@ elif st.session_state.step == "C":
         모델이 어떤 문장 형태로 위험도를 쓰든( [위험도: 고위험], 위험도는 고위험으로, 위험도: 고위험 등)
         최대한 안정적으로 고/중/저 개수를 집계.
         """
+         # ✅ 무조건 초기화 (이게 핵심)
+        high = med = low = 0
+        if not text:
+            return high, med, low
         # 1) 가장 표준: [위험도: 고위험]
         risks = re.findall(r'\[위험도:\s*(고위험|중위험|저위험)\]', text)
 
@@ -1326,9 +1330,9 @@ elif st.session_state.step == "C":
         if not risks:
             risks = re.findall(r'위험도\s*(?:는)?\s*(고위험|중위험|저위험)\s*으로', text)
 
-            high = sum(1 for r in risks if r == "고위험")
-            med  = sum(1 for r in risks if r == "중위험")
-            low  = sum(1 for r in risks if r == "저위험")
+        high = sum(1 for r in risks if r == "고위험")
+        med  = sum(1 for r in risks if r == "중위험")
+        low  = sum(1 for r in risks if r == "저위험")
         return high, med, low
 
     
