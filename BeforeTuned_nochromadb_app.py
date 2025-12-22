@@ -1309,6 +1309,28 @@ elif st.session_state.step == "C":
         text = re.sub(r'\n\s*근거:', r'\n- ⚖️ **근거**:', text)
         text = re.sub(r'\n\s*개선:', r'\n- ✅ **개선**:', text)
         return text
+
+    def count_risks_any_format(text: str):
+        """
+        모델이 어떤 문장 형태로 위험도를 쓰든( [위험도: 고위험], 위험도는 고위험으로, 위험도: 고위험 등)
+        최대한 안정적으로 고/중/저 개수를 집계.
+        """
+        # 1) 가장 표준: [위험도: 고위험]
+        risks = re.findall(r'\[위험도:\s*(고위험|중위험|저위험)\]', text)
+
+        # 2) 대안: 위험도: 고위험 / 위험도는 고위험 / 위험도는 고위험으로
+        if not risks:
+            risks = re.findall(r'위험도\s*(?:는)?\s*[: ]\s*(고위험|중위험|저위험)', text)
+
+        # 3) 더 강한 대안: "위험도는 저위험으로" 같은 문장까지
+        if not risks:
+            risks = re.findall(r'위험도\s*(?:는)?\s*(고위험|중위험|저위험)\s*으로', text)
+
+    high = sum(1 for r in risks if r == "고위험")
+    med  = sum(1 for r in risks if r == "중위험")
+    low  = sum(1 for r in risks if r == "저위험")
+    return high, med, low
+
     
     if is_original_contract:
         # === MODEL ANSWER: USE FAKE PROGRESS ===
@@ -1380,6 +1402,7 @@ elif st.session_state.step == "C":
             # CALL REAL PROGRESS
             ai_body = show_real_progress(run_with_progress)
             ai_body = enforce_min_wage_high_risk(ai_body, min_wage=10800)
+            high_risk, med_risk, low_risk = count_risks_any_format(ai_body)
             
             # --- FIX 3: CHECK FOR EMPTY OUTPUT ---
             if not ai_body or ai_body.strip() == "":
@@ -1390,6 +1413,7 @@ elif st.session_state.step == "C":
                 # 1. Calculate actual counts using Regex
                 import re
                 ai_body = format_details(ai_body)
+                high_risk, med_risk, low_risk = count_risks_any_format(ai_body)
                 high_risk = len(re.findall(r'위험도:\s*.*고위험', ai_body))
                 med_risk = len(re.findall(r'위험도:\s*.*중위험', ai_body))
                 low_risk = len(re.findall(r'위험도:\s*.*저위험', ai_body))
