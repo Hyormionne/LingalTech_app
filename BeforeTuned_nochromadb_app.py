@@ -1326,10 +1326,10 @@ elif st.session_state.step == "C":
         if not risks:
             risks = re.findall(r'위험도\s*(?:는)?\s*(고위험|중위험|저위험)\s*으로', text)
 
-    high = sum(1 for r in risks if r == "고위험")
-    med  = sum(1 for r in risks if r == "중위험")
-    low  = sum(1 for r in risks if r == "저위험")
-    return high, med, low
+            high = sum(1 for r in risks if r == "고위험")
+            med  = sum(1 for r in risks if r == "중위험")
+            low  = sum(1 for r in risks if r == "저위험")
+        return high, med, low
 
     
     if is_original_contract:
